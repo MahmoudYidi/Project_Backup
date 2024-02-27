@@ -12,6 +12,7 @@ from sklearn.metrics import mean_squared_error
 from scipy.spatial.distance import cosine
 from skimage.metrics import structural_similarity as ssim
 from scipy.stats import pearsonr
+from skimage import exposure
 
 
 def load_envi_hsi_by_wavelength(filepath, start_wavelength, end_wavelength):
@@ -710,11 +711,45 @@ def view_image_at_wavelength(image_data, wavelength_index, save_path):
     """
     # Extract data for the specified wavelength
     image_at_wavelength = image_data[:, :, wavelength_index]
+    # Enhance contrast using histogram equalization
+    equalized_image = exposure.equalize_hist(image_at_wavelength)
 
     # Display the image using imshow
     plt.figure(figsize=(8, 6))
-    plt.imshow(image_at_wavelength, cmap='gray')
+    #plt.imshow(image_at_wavelength, cmap='gray')
+    plt.imshow(equalized_image, cmap='gray')
     plt.title(f"Image at Wavelength {wavelength_index}")
+    plt.colorbar(label='Intensity')
+    plt.xlabel('X-coordinate')
+    plt.ylabel('Y-coordinate')
+
+    # Save the image as an image file
+    plt.savefig(save_path)
+    plt.close()
+    
+def view_image_at_wavelength_invert(image_data, wavelength_index, save_path):
+    """
+    View the image at a specific wavelength using imshow and save it as an image file.
+
+    Args:
+    - image_data: NumPy array containing hyperspectral image data with shape (height, width, num_wavelengths).
+    - wavelength_index: Index of the wavelength to view.
+    - save_path: File path to save the image.
+
+    Returns:
+    - None. Saves the image file.
+    """
+    # Extract data for the specified wavelength
+    image_at_wavelength = image_data[:, :, wavelength_index]
+
+    # Invert the intensity
+    max_intensity = np.max(image_at_wavelength)
+    inverted_image = max_intensity - image_at_wavelength
+
+    # Display the image using imshow
+    plt.figure(figsize=(8, 6))
+    plt.imshow(inverted_image, cmap='gray')
+    plt.title(f"Inverted Image at Wavelength {wavelength_index}")
     plt.colorbar(label='Intensity')
     plt.xlabel('X-coordinate')
     plt.ylabel('Y-coordinate')
@@ -967,6 +1002,22 @@ def standardize_per_wavelength(spectral_data):
 
     return standardized_data
 
+def min_max_scaling(data):
+    min_val = np.min(data)
+    max_val = np.max(data)
+    scaled_data = (data - min_val) / (max_val - min_val)
+    return scaled_data
+
+def min_max_scaling_all(data_list):
+    # Concatenate all arrays into a single array
+    combined_data = np.concatenate(data_list)
+    # Find the minimum and maximum values from the combined array
+    min_val = np.min(combined_data)
+    max_val = np.max(combined_data)
+    # Scale each array based on the global minimum and maximum values
+    scaled_data_list = [(data - min_val) / (max_val - min_val) for data in data_list]
+    return scaled_data_list
+
 def min_max_normalization_per_wavelength(data):
     """
     Perform min-max normalization per wavelength for spectral data.
@@ -1033,7 +1084,7 @@ def compute_SAM_all(rois, roi_indices):
 
     return similarity_score, angle_degrees
 
-def plot_SAM_all(sam_scores, angles):
+def plot_SAM_all(sam_scores, ROI, filename):
     """
     Plot the SAM similarity scores and angles.
 
@@ -1046,24 +1097,66 @@ def plot_SAM_all(sam_scores, angles):
     """
     # Plot SAM similarity scores
     plt.figure(figsize=(10, 6))
-    plt.plot(sam_scores, label='SAM Similarity Score', color='blue')
-    plt.xlabel('Pixel Index')
+    plt.scatter(ROI[0], sam_scores[0], label='ROI 1', color='blue')
+    plt.scatter(ROI[1],sam_scores[1], label='ROI 2', color='green')
+    plt.scatter(ROI[2],sam_scores[2], label='ROI 3', color='red')
+    plt.xlabel('Index')
     plt.ylabel('Similarity Score')
     plt.title('SAM Similarity Scores')
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig('sam_similarity_scores.png')
+    plt.savefig(filename)
     plt.close()
 
-    # Plot angles
-    plt.figure(figsize=(10, 6))
-    plt.plot(angles, label='Angle (degrees)', color='green')
-    plt.xlabel('Pixel Index')
-    plt.ylabel('Angle (degrees)')
-    plt.title('Angles between Spectral Vectors')
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig('spectral_vector_angles.png')
-    plt.close()
+    
+    
+def subdivide_roi(roi, num_subdivisions):
+    """
+    Subdivide a single ROI into equal parts as determined by the user.
+
+    Args:
+    - roi: The ROI to subdivide (numpy array).
+    - num_subdivisions: Number of subdivisions to create for the ROI.
+
+    Returns:
+    - List of subdivided ROIs.
+    """
+    subdivided_rois = []
+
+    # Determine the size of each subdivision
+    sub_width = roi.shape[1] // num_subdivisions
+    sub_height = roi.shape[0] // num_subdivisions
+
+    # Subdivide the ROI
+    for i in range(num_subdivisions):
+        for j in range(num_subdivisions):
+            # Calculate bounding box coordinates for the current subdivision
+            x1 = i * sub_width
+            y1 = j * sub_height
+            x2 = (i + 1) * sub_width
+            y2 = (j + 1) * sub_height
+
+            # Extract the current subdivision from the ROI
+            subdivision = roi[y1:y2, x1:x2]
+
+            # Append the subdivision to the list
+            subdivided_rois.append(subdivision)
+
+    return subdivided_rois
+
+def select_and_subdivide_roi(rois, roi_index, num_subdivisions):
+    """
+    Select a specific ROI from the list of ROIs and subdivide it into equal parts.
+
+    Args:
+    - rois: List of ROIs (each ROI is a numpy array).
+    - roi_index: Index of the ROI to subdivide.
+    - num_subdivisions: Number of subdivisions to create for the ROI.
+
+    Returns:
+    - List of subdivided ROIs.
+    """
+    selected_roi = rois[roi_index]
+    subdivided_roi = subdivide_roi(selected_roi, num_subdivisions)
+    return subdivided_roi
