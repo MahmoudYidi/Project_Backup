@@ -46,6 +46,47 @@ def load_envi_hsi_by_wavelength(filepath, start_wavelength, end_wavelength):
 
     return hsi_subset, selected_wavelengths
 
+def load_envi_hsi_by_muliple_wavelength(filepath, wavelength_ranges):
+    """
+    Load an ENVI hyperspectral image (HSI) from specific ranges of wavelengths.
+    
+    Parameters:
+        filepath (str): Path to the ENVI HSI file.
+        wavelength_ranges (list of tuples): List of tuples, each representing a range of wavelengths.
+                                             Each tuple should contain two floats: start and end wavelengths.
+    
+    Returns:
+        numpy.ndarray: HSI data cube containing the specified ranges of wavelengths.
+        list: List of selected wavelengths corresponding to the loaded data.
+    """
+    # Open the HSI file
+    hsi_data = spectral.envi.open(filepath)
+    
+    # Get wavelength information
+    wavelengths = hsi_data.bands.centers
+    
+    # Initialize arrays to store selected bands and corresponding wavelengths
+    selected_bands = []
+    selected_wavelengths = []
+    
+    # Iterate over each wavelength range
+    for start_wavelength, end_wavelength in wavelength_ranges:
+        # Find bands within the specified range of wavelengths
+        bands_in_range = [i for i, w in enumerate(wavelengths) if start_wavelength <= w <= end_wavelength]
+        
+        if not bands_in_range:
+            raise ValueError(f"No bands found within the specified range of wavelengths: {start_wavelength}-{end_wavelength}")
+        
+        # Add selected bands to the list
+        selected_bands.extend(bands_in_range)
+        
+        # Add corresponding wavelengths to the list
+        selected_wavelengths.extend([wavelengths[i] for i in bands_in_range])
+    
+    # Read the selected bands
+    hsi_subset = hsi_data.read_bands(selected_bands)
+    
+    return hsi_subset, selected_wavelengths
 
 def data_correction(raw_data, dark_data, white_data):
     """"

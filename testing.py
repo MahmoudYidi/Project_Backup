@@ -17,9 +17,9 @@ from utils import *
 
 # Example usage:
 # Path to the ENVI HSI file (1st data)
-raw = "/mnt/c/Users/mahmo/Desktop/Github_Dump/hsi_images_qualicrop_fx10e_29-01-24/anom_1_2024-01-26_15-21-55/capture/anom_1_2024-01-26_15-21-55.hdr"
-dark = '/mnt/c/Users/mahmo/Desktop/Github_Dump/hsi_images_qualicrop_fx10e_29-01-24/dark_ref_shutter_cap_on/capture/dark_ref_shutter_2024-01-26_16-03-56.hdr'
-white = '/mnt/c/Users/mahmo/Desktop/Github_Dump/hsi_images_qualicrop_fx10e_29-01-24/white_ref_2024-01-26_16-00-30/capture/white_ref_2024-01-26_16-00-30.hdr'
+#raw = "/mnt/c/Users/mahmo/Desktop/Github_Dump/hsi_images_qualicrop_fx10e_29-01-24/anom_1_2024-01-26_15-21-55/capture/anom_1_2024-01-26_15-21-55.hdr"
+#dark = '/mnt/c/Users/mahmo/Desktop/Github_Dump/hsi_images_qualicrop_fx10e_29-01-24/dark_ref_shutter_cap_on/capture/dark_ref_shutter_2024-01-26_16-03-56.hdr'
+#white = '/mnt/c/Users/mahmo/Desktop/Github_Dump/hsi_images_qualicrop_fx10e_29-01-24/white_ref_2024-01-26_16-00-30/capture/white_ref_2024-01-26_16-00-30.hdr'
 
 
 # Path to the ENVI HSI file (2nd data)
@@ -30,9 +30,9 @@ white = '/mnt/c/Users/mahmo/Desktop/Github_Dump/hsi_images_qualicrop_fx10e_29-01
 
 
 # Path to the ENVI HSI file (3rd data)
-#raw = "/mnt/c/Users/mahmo/Desktop/Github_Dump/hsi_images_qualicrop_fx10e_29-01-24/anom_5_2024-01-26_15-57-30/capture/anom_5_2024-01-26_15-57-30.hdr"
-#dark = '/mnt/c/Users/mahmo/Desktop/Github_Dump/hsi_images_qualicrop_fx10e_29-01-24/dark_ref_shutter_cap_on/capture/dark_ref_shutter_2024-01-26_16-03-56.hdr'
-#white = '/mnt/c/Users/mahmo/Desktop/Github_Dump/hsi_images_qualicrop_fx10e_29-01-24/white_ref_2024-01-26_16-00-30/capture/white_ref_2024-01-26_16-00-30.hdr'
+raw = "/mnt/c/Users/mahmo/Desktop/Github_Dump/hsi_images_qualicrop_fx10e_29-01-24/anom_5_2024-01-26_15-57-30/capture/anom_5_2024-01-26_15-57-30.hdr"
+dark = '/mnt/c/Users/mahmo/Desktop/Github_Dump/hsi_images_qualicrop_fx10e_29-01-24/dark_ref_shutter_cap_on/capture/dark_ref_shutter_2024-01-26_16-03-56.hdr'
+white = '/mnt/c/Users/mahmo/Desktop/Github_Dump/hsi_images_qualicrop_fx10e_29-01-24/white_ref_2024-01-26_16-00-30/capture/white_ref_2024-01-26_16-00-30.hdr'
 
 # Specify the range of bands to load (visible)
 #start_wl = 460.27
@@ -63,8 +63,15 @@ end_wl = 998.66
 #end_wl = 700.00
 
 #  Load the HSI data cube with the specified range of bands
-hsi_data_raw, bandss = load_envi_hsi_by_wavelength(raw, start_wl, end_wl)
+#hsi_data_raw, bandss = load_envi_hsi_by_wavelength(raw, start_wl, end_wl)
 
+### Load by multiple wavelengths
+wavelength_ranges = [(529.91, 580.80),(950.45,998.66)]
+hsi_data_raw, bandss = load_envi_hsi_by_muliple_wavelength(raw, wavelength_ranges)
+hsi_data_white, _ = load_envi_hsi_by_muliple_wavelength(white, wavelength_ranges)
+hsi_data_dark, _ = load_envi_hsi_by_muliple_wavelength(dark, wavelength_ranges)
+print("Loaded HSI data shape:", hsi_data_raw.shape)
+print("Selected wavelengths:", bandss)
 #print(bandss)
 
 # Band Selected by manual inspection (Red: Around 620-750 nanometers (nm) /Green: Around 495-570 nm /Blue: Around 450-495 nm)
@@ -106,10 +113,10 @@ B = get_band_index(bandss,529.91)
 #B = get_band_index(bandss,900.89)
 
 #  Load the HSI data cube with the specified range of bands
-hsi_data_white, _ = load_envi_hsi_by_wavelength(white, start_wl, end_wl)
+#hsi_data_white, _ = load_envi_hsi_by_wavelength(white, start_wl, end_wl)
 
 #  Load the HSI data cube with the specified range of bands
-hsi_data_dark, _ = load_envi_hsi_by_wavelength(dark, start_wl, end_wl)
+#hsi_data_dark, _ = load_envi_hsi_by_wavelength(dark, start_wl, end_wl)
 
 #bands =  hsi_data_raw.bands.centers
 ###
