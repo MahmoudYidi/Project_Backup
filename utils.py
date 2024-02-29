@@ -46,47 +46,59 @@ def load_envi_hsi_by_wavelength(filepath, start_wavelength, end_wavelength):
 
     return hsi_subset, selected_wavelengths
 
-def load_envi_hsi_by_muliple_wavelength(filepath, wavelength_ranges):
+def load_envi_RGB_wave(filepath, wavelengths):
     """
-    Load an ENVI hyperspectral image (HSI) from specific ranges of wavelengths.
+    Load an ENVI hyperspectral image (HSI) for specific wavelengths.
     
     Parameters:
         filepath (str): Path to the ENVI HSI file.
-        wavelength_ranges (list of tuples): List of tuples, each representing a range of wavelengths.
-                                             Each tuple should contain two floats: start and end wavelengths.
+        wavelengths (list of float): List of wavelengths (in nanometers) to load.
     
     Returns:
-        numpy.ndarray: HSI data cube containing the specified ranges of wavelengths.
-        list: List of selected wavelengths corresponding to the loaded data.
+        numpy.ndarray: HSI data cube containing the specified wavelengths.
     """
     # Open the HSI file
     hsi_data = spectral.envi.open(filepath)
     
     # Get wavelength information
-    wavelengths = hsi_data.bands.centers
+    all_wavelengths = hsi_data.bands.centers
     
-    # Initialize arrays to store selected bands and corresponding wavelengths
-    selected_bands = []
-    selected_wavelengths = []
+    # Find bands corresponding to the selected wavelengths
+    selected_bands = [i for i, w in enumerate(all_wavelengths) if w in wavelengths]
     
-    # Iterate over each wavelength range
-    for start_wavelength, end_wavelength in wavelength_ranges:
-        # Find bands within the specified range of wavelengths
-        bands_in_range = [i for i, w in enumerate(wavelengths) if start_wavelength <= w <= end_wavelength]
-        
-        if not bands_in_range:
-            raise ValueError(f"No bands found within the specified range of wavelengths: {start_wavelength}-{end_wavelength}")
-        
-        # Add selected bands to the list
-        selected_bands.extend(bands_in_range)
-        
-        # Add corresponding wavelengths to the list
-        selected_wavelengths.extend([wavelengths[i] for i in bands_in_range])
+    if not selected_bands:
+        raise ValueError("No bands found for the specified wavelengths.")
     
     # Read the selected bands
     hsi_subset = hsi_data.read_bands(selected_bands)
     
-    return hsi_subset, selected_wavelengths
+    return hsi_subset
+
+
+def load_envi_hsi_2D(filepath, target_wavelength):
+    """
+    Load an ENVI hyperspectral image (HSI) at a specific wavelength.
+    
+    Parameters:
+        filepath (str): Path to the ENVI HSI file.
+        target_wavelength (float): Target wavelength (in nanometers).
+    
+    Returns:
+        numpy.ndarray: HSI 2D image at the specified wavelength.
+    """
+    # Open the HSI file
+    hsi_data = spectral.envi.open(filepath)
+    
+    # Get wavelength information
+    wavelengths = np.array(hsi_data.bands.centers)
+    
+    # Find the index of the band closest to the target wavelength
+    closest_band_index = np.argmin(np.abs(wavelengths - target_wavelength))
+    
+    # Read the selected band
+    hsi_image = hsi_data.read_band(closest_band_index)
+    
+    return hsi_image
 
 def data_correction(raw_data, dark_data, white_data):
     """"
@@ -753,12 +765,12 @@ def view_image_at_wavelength(image_data, wavelength_index, save_path):
     # Extract data for the specified wavelength
     image_at_wavelength = image_data[:, :, wavelength_index]
     # Enhance contrast using histogram equalization
-    equalized_image = exposure.equalize_hist(image_at_wavelength)
+   #equalized_image = exposure.equalize_hist(image_at_wavelength)
 
     # Display the image using imshow
     plt.figure(figsize=(8, 6))
-    #plt.imshow(image_at_wavelength, cmap='gray')
-    plt.imshow(equalized_image, cmap='gray')
+    plt.imshow(image_at_wavelength, cmap='gray')
+    #plt.imshow(equalized_image, cmap='gray')
     plt.title(f"Image at Wavelength {wavelength_index}")
     plt.colorbar(label='Intensity')
     plt.xlabel('X-coordinate')
@@ -1201,3 +1213,69 @@ def select_and_subdivide_roi(rois, roi_index, num_subdivisions):
     selected_roi = rois[roi_index]
     subdivided_roi = subdivide_roi(selected_roi, num_subdivisions)
     return subdivided_roi
+
+def flat_field_correction(hsi_cube, flat_field_image):
+    # Normalize flat field image
+    normalized_flat_field = flat_field_image / np.mean(flat_field_image)
+    
+    # Apply flat field correction
+    corrected_hsi_cube = hsi_cube / normalized_flat_field[:,:,np.newaxis]
+    
+    return corrected_hsi_cube
+
+def histogram_equalization_hsi_cube(hsi_cube):
+    # Initialize an empty array to store the equalized HSI cube
+    equalized_hsi_cube = np.zeros_like(hsi_cube)
+
+    # Calculate the minimum and maximum values from the input cube
+    min_value = np.min(hsi_cube)
+    max_value = np.max(hsi_cube)
+
+    # Apply histogram equalization to each spectral band
+    for i in range(hsi_cube.shape[2]):  # Iterate over spectral bands
+        # Extract the spectral band
+        spectral_band = hsi_cube[:,:,i]
+
+        # Convert the spectral band to 8-bit unsigned integer format
+        spectral_band_uint8 = cv2.normalize(spectral_band, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+
+        # Perform histogram equalization
+        equalized_spectral_band_uint8 = cv2.equalizeHist(spectral_band_uint8)
+
+        # Rescale pixel values to the original data range
+        equalized_spectral_band = cv2.normalize(equalized_spectral_band_uint8, None, min_value, max_value, cv2.NORM_MINMAX)
+
+        # Store the equalized and scaled spectral band in the equalized HSI cube
+        equalized_hsi_cube[:,:,i] = equalized_spectral_band.astype(hsi_cube.dtype)
+
+    return equalized_hsi_cube
+
+def gradient_based_correction(hsi_cube):
+    # Initialize an empty array to store the corrected HSI cube
+    corrected_hsi_cube = np.zeros_like(hsi_cube, dtype=np.float32)
+
+    # Iterate over spectral bands (wavelengths)
+    for i in range(hsi_cube.shape[2]):
+        # Extract the spectral band
+        spectral_band = hsi_cube[:,:,i]
+
+        # Convert the spectral band to grayscale
+        grayscale_image = spectral_band.astype(np.uint8)
+
+        # Compute gradient magnitude using Sobel filter
+        gradient_x = cv2.Sobel(grayscale_image, cv2.CV_64F, 1, 0, ksize=3)
+        gradient_y = cv2.Sobel(grayscale_image, cv2.CV_64F, 0, 1, ksize=3)
+        gradient_magnitude = np.sqrt(gradient_x**2 + gradient_y**2)
+
+        # Avoid division by zero or invalid values
+        gradient_magnitude_nonzero = np.where(gradient_magnitude != 0, gradient_magnitude, 1e-6)
+
+        # Apply correction by dividing each pixel value by the corresponding gradient magnitude
+        corrected_spectral_band = spectral_band / gradient_magnitude_nonzero
+
+        # Store the corrected spectral band in the corrected HSI cube
+        corrected_hsi_cube[:,:,i] = corrected_spectral_band
+
+    return corrected_hsi_cube
+
+
