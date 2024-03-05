@@ -1,0 +1,3 @@
+/mnt/c/Users/mahmo/Desktop/Github_Dump/hsi_images_qualicrop_fx10e_29-01-24/anom_1_2024-01-26_15-21-55/capture/anom_1_2024-01-26_15-21-55.hdr
+/mnt/c/Users/mahmo/Desktop/Github_Dump/hsi_images_qualicrop_fx10e_29-01-24/anom_2_2024-01-26_15-34-16/capture/anom_2_2024-01-26_15-34-16.hdr
+/mnt/c/Users/mahmo/Desktop/Github_Dump/hsi_images_qualicrop_fx10e_29-01-24/anom_5_2024-01-26_15-57-30/capture/anom_5_2024-01-26_15-57-30.hdr

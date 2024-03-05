@@ -33,6 +33,7 @@ white = '/mnt/c/Users/mahmo/Desktop/Github_Dump/hsi_images_qualicrop_fx10e_29-01
 # Specify the range of bands to load (visible analysis)
 start_wl = 529.91
 end_wl = 580.80
+#end_wl = 850.00
 
 # Loading HSI Cube 
 hsi_data_raw, bandss = load_envi_hsi_by_wavelength(raw, start_wl, end_wl)
@@ -45,6 +46,12 @@ img = get_rgb(RGB_former, bands=[0,1,2])
 image = cv2.normalize(img, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)
 image = image.astype(np.uint8)
 
+#Uncomment to view the RGB Image
+#cv2.namedWindow("main", cv2.WINDOW_NORMAL)
+#cv2.imshow('main', image)
+#cv2.waitKey(0)
+#cv2.destroyAllWindows()
+
 #Calibration (Tc-Td/Tw-Td)
 corrected_data = data_correction(hsi_data_raw, hsi_data_dark, hsi_data_white)
 #corrected_data= min_max_normalization_per_wavelength(corrected_data)
@@ -53,16 +60,16 @@ corrected_data = data_correction(hsi_data_raw, hsi_data_dark, hsi_data_white)
 del hsi_data_raw, hsi_data_white, hsi_data_dark #Trying to save space. LOL
 
 #Segmentation
-segmentation = model.predict(image, save=False, save_txt=False, box=True, imgsz=640, line_thickness=1, retina_masks=True)
+segmentation = model.predict(image, save=True, save_txt=False, box=True, imgsz=640, line_thickness=1, retina_masks=True)
 ROIS = gather_segmented_pixels(segmentation, save_dir, min_width_threshold=50, min_height_threshold=50)
 HSI_rois =  extract_rois_from_hsi(corrected_data, ROIS)
 plot_reflectance_data(HSI_rois, wavelengths)
 
 
     
-####Try Kmeans Operation ######################
-#clustter_labels = kmeans_clustering(HSI_rois[0],3)
-#visualize_clusters(HSI_rois[0],clustter_labels,save_path='cluster_means.png')
+#### Try Kmeans Operation (per one) ######################
+clustter_labels = kmeans_clustering(HSI_rois[0],3)
+visualize_clusters(HSI_rois[0],clustter_labels,save_path='cluster_means.png')
 #plot_reflectance_per_cluster(HSI_rois[0],bandss,clustter_labels,save_path='reflectance_cluster.png')
 #scatter_plot_clusters(HSI_rois[0],clustter_labels,save_path='scatter_cluster_means.png')
 #visualize_clustered_hsi(HSI_rois[0],3,save_path='cluster_combine.png')
@@ -74,5 +81,10 @@ plot_reflectance_data(HSI_rois, wavelengths)
 #scatter_plot_clusters(HSI_rois[0],clustter_labels2,save_path='scatter_cluster_medoids.png')
 
 #Now theres on function to do all!!!!####
-cluster_folder = "/mnt/c/Users/mahmo/Desktop/Github_Dump/QualiCrop/segment/clusters"
-process_hsi_rois_cluster(HSI_rois, 4, bandss, cluster_folder, view_wavelength=580.80)
+#cluster_folder = "/mnt/c/Users/mahmo/Desktop/Github_Dump/QualiCrop/segment/clusters"
+#cluster_labels = process_hsi_rois_cluster(HSI_rois, 5, bandss, cluster_folder, view_wavelength=580.80)
+
+#Refilling the some labels
+updated_block=replace_intensity_of_label_kmeans(HSI_rois[0], clustter_labels, 2, 0 )
+clustter_labels = kmeans_clustering(updated_block,3)
+visualize_clusters(updated_block,clustter_labels,save_path='cluster_means_updated.png')

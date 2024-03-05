@@ -357,3 +357,34 @@ def process_hsi_rois_cluster(HSI_rois, num_clusters, bands_list, save_folder, vi
         # View/save the image at a specific wavelength
         if view_wavelength is not None:
             view_image_at_wavelength(roi, get_band_index(bands_list, view_wavelength), f'{save_folder}/image_at_wavelength_{idx}.png')
+    return cluster_labels
+            
+def replace_intensity_of_label_kmeans(hsi_cube, kmeans_labels, original_label, new_label):
+    """
+    Replace intensities of pixels of a particular k-means label with the intensities of another label in a hyperspectral image cube.
+
+    Parameters:
+        hsi_cube (numpy.ndarray): Hyperspectral image cube (3D array).
+        kmeans_labels (numpy.ndarray): K-means cluster labels for each pixel.
+        original_label (int): Original k-means label whose intensities will be replaced.
+        new_label (int): K-means label from which intensities will be copied to replace the original label.
+
+    Returns:
+        numpy.ndarray: Updated HSI cube with replaced intensities.
+    """
+    updated_hsi_cube = hsi_cube.copy()
+    
+    # Find indices of pixels with original and new labels
+    original_indices = np.where(kmeans_labels == original_label)
+    new_indices = np.where(kmeans_labels == new_label)
+    
+    # Match the number of pixels for both labels
+    min_length = min(len(original_indices[0]), len(new_indices[0]))
+    original_indices = (original_indices[0][:min_length], original_indices[1][:min_length])
+    new_indices = (new_indices[0][:min_length], new_indices[1][:min_length])
+    
+    # Iterate over spectral bands and assign intensities
+    for i in range(hsi_cube.shape[2]):
+        updated_hsi_cube[original_indices[0], original_indices[1], i] = hsi_cube[new_indices[0], new_indices[1], i]
+    
+    return updated_hsi_cube
