@@ -22,11 +22,6 @@ width = 1024
 num_bands = 39
 
 
-
-
-
-
-
 # Define VAE architecture
 # Define VAE architecture
 # Define hyperparameters
